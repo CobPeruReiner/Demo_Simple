@@ -1,29 +1,29 @@
-# services:
-#   web:
-#     build: .
-#     container_name: express-80-443
-#     restart: unless-stopped
-#     volumes:
-#       - ./certs:/certs:ro
-#     ports:
-#       - "80:80"
-#       - "443:443"
-
 services:
   web:
-    build: .
+    build: ./Server
     container_name: demo_simple-web
     restart: unless-stopped
     environment:
       - DOMAIN=geocampo.online
+      - PHP_TARGET=http://php:3001
+    depends_on:
+      - php
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      # Certs solo lectura para la app
       - ./certbot/conf:/etc/letsencrypt:ro
-      # Webroot ACME solo lectura para la app
       - ./certbot/www:/var/www/certbot:ro
+
+  php:
+    image: php:8.3-cli
+    container_name: demo_simple-php
+    working_dir: /app
+    command: php -S 0.0.0.0:3001 -t /app
+    volumes:
+      - ./PHP:/app:ro
+    expose:
+      - "3001"
 
   # Emisión inicial (se corre MANUAL una sola vez)
   certbot_once:
@@ -36,7 +36,7 @@ services:
       certonly --webroot
       --webroot-path /var/www/certbot
       -d geocampo.online
-      --email TU_EMAIL@correo.com
+      --email dalayo@cobranzasperu.com
       --agree-tos
       --no-eff-email
 
