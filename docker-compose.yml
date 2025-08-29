@@ -55,7 +55,7 @@ services:
       -c '
       while :; do
         certbot renew --webroot -w /var/www/certbot \
-          --deploy-hook "docker restart demo_simple-web" ;
+          --deploy-hook "curl --unix-socket /var/run/docker.sock -X POST http://localhost/v1.43/containers/demo_simple-web/restart" ;
         sleep 12h ;
       done
       '
