@@ -43,39 +43,42 @@ const path = require("path");
 
 const app = express();
 
-// Sirve estáticos de tu web (opcional)
+// (Opcional) Forzar HTTPS para tu dominio, dejando pasar el challenge ACME
+app.use((req, res, next) => {
+  if (req.path.startsWith("/.well-known/acme-challenge")) return next();
+  // Si ya viene por HTTPS, sigue
+  if (req.secure || req.headers["x-forwarded-proto"] === "https") return next();
+  // Solo redirige si es tu dominio (las IPs no tienen cert)
+  const host = req.headers.host || "";
+  if (host.includes("geocampo.online")) {
+    return res.redirect("https://" + host + req.url);
+  }
+  return next();
+});
+
+// Sirve tu sitio estático (si tienes carpeta public/)
 app.use(express.static(path.join(__dirname, "public")));
 
-// 🔐 Webroot para ACME HTTP-01: Certbot escribirá aquí.
-// Montaremos esta ruta en el contenedor: /var/www/certbot
-const ACME_WEBROOT = "/var/www/certbot";
-app.use(
-  "/.well-known/acme-challenge",
-  express.static(path.join(ACME_WEBROOT, ".well-known", "acme-challenge"))
-);
+// Webroot ACME (Certbot escribirá aquí los retos HTTP-01)
+const ACME_ROOT = "/var/www/certbot";
+app.use("/.well-known", express.static(path.join(ACME_ROOT, ".well-known")));
 
-// Ruta simple
-// app.get("/", (_req, res) => {
-//   res.send("Express listo. HTTP:80 y (si hay cert) HTTPS:443 ✅");
-// });
+// Prueba
+app.get("/health", (_req, res) => res.json({ ok: true }));
 
-// HTTP siempre (requiere puerto 80 para validación ACME)
+// HTTP siempre (requerido por ACME)
 http.createServer(app).listen(80, "0.0.0.0", () => {
   console.log("HTTP listo en :80");
 });
 
-// HTTPS si existen certificados de Let's Encrypt
+// HTTPS si hay certificados de Let's Encrypt
 const DOMAIN = process.env.DOMAIN || "geocampo.online";
-const liveDir = `/etc/letsencrypt/live/${DOMAIN}`;
+const LIVE_DIR = `/etc/letsencrypt/live/${DOMAIN}`;
+const KEY = path.join(LIVE_DIR, "privkey.pem");
+const CERT = path.join(LIVE_DIR, "fullchain.pem");
 
-const keyFile = path.join(liveDir, "privkey.pem");
-const certFile = path.join(liveDir, "fullchain.pem");
-
-if (fs.existsSync(keyFile) && fs.existsSync(certFile)) {
-  const options = {
-    key: fs.readFileSync(keyFile),
-    cert: fs.readFileSync(certFile),
-  };
+if (fs.existsSync(KEY) && fs.existsSync(CERT)) {
+  const options = { key: fs.readFileSync(KEY), cert: fs.readFileSync(CERT) };
   https.createServer(options, app).listen(443, "0.0.0.0", () => {
     console.log(`HTTPS listo en :443 con Let's Encrypt para ${DOMAIN}`);
   });

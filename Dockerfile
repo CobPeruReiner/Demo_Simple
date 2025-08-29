@@ -27,8 +27,6 @@ COPY package*.json ./
 RUN npm ci --omit=dev || npm i --omit=dev
 COPY . .
 
-# Documenta puertos
 EXPOSE 80 443
-
 ENV NODE_ENV=production
 CMD ["node", "index.js"]

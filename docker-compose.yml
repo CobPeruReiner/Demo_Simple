@@ -20,19 +20,18 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      # Certificados LE montados en solo lectura
+      # Certs solo lectura para la app
       - ./certbot/conf:/etc/letsencrypt:ro
-      # Webroot para los desafíos ACME
+      # Webroot ACME solo lectura para la app
       - ./certbot/www:/var/www/certbot:ro
 
-  # Emisión inicial (se ejecuta una sola vez con 'docker compose run')
+  # Emisión inicial (se corre MANUAL una sola vez)
   certbot_once:
     image: certbot/certbot:latest
     container_name: demo_simple-certbot-once
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    # IMPORTANTE: pon tu email real
     command: >
       certonly --webroot
       --webroot-path /var/www/certbot
@@ -41,7 +40,7 @@ services:
       --agree-tos
       --no-eff-email
 
-  # Renovación automática (queda corriendo en bucle y reinicia 'web' cuando renueva)
+  # Renovación automática (sin docker CLI; usando API del daemon)
   certbot_renew:
     image: certbot/certbot:latest
     container_name: demo_simple-certbot-renew
