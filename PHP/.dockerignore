@@ -1,0 +1,5 @@
+fotos/
+.git/
+*.log
+node_modules/
+vendor/*/tests/
