@@ -1,12 +1,61 @@
-version: "3.9"
+# services:
+#   web:
+#     build: .
+#     container_name: express-80-443
+#     restart: unless-stopped
+#     volumes:
+#       - ./certs:/certs:ro
+#     ports:
+#       - "80:80"
+#       - "443:443"
 
 services:
   web:
     build: .
-    container_name: express-80-443
+    container_name: demo_simple-web
     restart: unless-stopped
-    volumes:
-      - ./certs:/certs:ro
+    environment:
+      - DOMAIN=geocampo.online
     ports:
       - "80:80"
       - "443:443"
+    volumes:
+      # Certificados LE montados en solo lectura
+      - ./certbot/conf:/etc/letsencrypt:ro
+      # Webroot para los desafíos ACME
+      - ./certbot/www:/var/www/certbot:ro
+
+  # Emisión inicial (se ejecuta una sola vez con 'docker compose run')
+  certbot_once:
+    image: certbot/certbot:latest
+    container_name: demo_simple-certbot-once
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    # IMPORTANTE: pon tu email real
+    command: >
+      certonly --webroot
+      --webroot-path /var/www/certbot
+      -d geocampo.online
+      --email TU_EMAIL@correo.com
+      --agree-tos
+      --no-eff-email
+
+  # Renovación automática (queda corriendo en bucle y reinicia 'web' cuando renueva)
+  certbot_renew:
+    image: certbot/certbot:latest
+    container_name: demo_simple-certbot-renew
+    restart: unless-stopped
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: /bin/sh
+    command: |
+      -c '
+      while :; do
+        certbot renew --webroot -w /var/www/certbot \
+          --deploy-hook "docker restart demo_simple-web" ;
+        sleep 12h ;
+      done
+      '
